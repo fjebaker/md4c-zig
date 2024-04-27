@@ -1,21 +1,35 @@
 const std = @import("std");
 
+const VERSION: std.SemanticVersion = .{
+    .major = 0,
+    .minor = 4,
+    .patch = 8,
+};
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const shared = b.option(
-        bool,
-        "shared",
-        "Build wd4c as a shared library",
-    ) orelse false;
+    // On Windows, given there is no standard lib install dir etc., we rather
+    // by default build static lib.
+    const build_shared = !target.result.isMinGW();
 
-    const lib = if (shared)
+    // build options
+    var with_utf8 = b.option(bool, "utf8", "Use UTF8") orelse false;
+    const with_utf16 = b.option(bool, "utf16", "Use UTF16") orelse false;
+    const with_ascii = b.option(bool, "ascii", "Use UTF8") orelse false;
+
+    // defaults to UTF8 if nothing else set
+    if (!with_utf8 and !with_utf16 and !with_ascii) {
+        with_utf8 = true;
+    }
+
+    const lib = if (build_shared)
         b.addSharedLibrary(.{
             .name = "md4c",
             .target = target,
             .optimize = optimize,
-            .version = .{ .major = 0, .minor = 4, .patch = 9 },
+            .version = VERSION,
         })
     else
         b.addStaticLibrary(.{
@@ -24,15 +38,60 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         });
 
-    lib.defineCMacro("MD4C_USE_UTF8", "");
     lib.addCSourceFiles(.{
         .files = &md4c_sources,
         .flags = &md4c_flags,
     });
-    lib.linkLibC();
-    lib.installHeader("src/md4c.h", "md4c.h");
 
+    setDefines(lib, with_utf8, with_utf16, with_ascii);
+    lib.linkLibC();
+    lib.installHeader(.{ .path = "src/md4c.h" }, "md4c.h");
     b.installArtifact(lib);
+
+    const exe = b.addExecutable(.{
+        .name = "md2html",
+        .target = target,
+        .optimize = optimize,
+    });
+
+    setDefines(exe, with_utf8, with_utf16, with_ascii);
+    exe.addCSourceFiles(.{
+        .files = &md2html_sources,
+        .flags = &md4c_flags,
+    });
+    exe.linkLibC();
+
+    const install_exe = b.addInstallArtifact(exe, .{});
+    const md2html_step = b.step("md2html", "Compile the md2html executable");
+    md2html_step.dependOn(&install_exe.step);
+}
+
+fn setDefines(
+    lib_or_exe: *std.Build.Step.Compile,
+    with_utf8: bool,
+    with_utf16: bool,
+    with_ascii: bool,
+) void {
+    lib_or_exe.root_module.addCMacro(
+        "MD_VERSION_MAJOR",
+        std.fmt.comptimePrint("{d}", .{VERSION.major}),
+    );
+    lib_or_exe.root_module.addCMacro(
+        "MD_VERSION_MINOR",
+        std.fmt.comptimePrint("{d}", .{VERSION.minor}),
+    );
+    lib_or_exe.root_module.addCMacro(
+        "MD_VERSION_RELEASE",
+        std.fmt.comptimePrint("{d}", .{VERSION.patch}),
+    );
+
+    if (with_utf8) {
+        lib_or_exe.defineCMacro("MD4C_USE_UTF8", "1");
+    } else if (with_ascii) {
+        lib_or_exe.defineCMacro("MD4C_USE_ASCII", "1");
+    } else if (with_utf16) {
+        lib_or_exe.defineCMacro("MD4C_USE_UTF16", "1");
+    }
 }
 
 const md4c_flags = [_][]const u8{
@@ -41,4 +100,12 @@ const md4c_flags = [_][]const u8{
 
 const md4c_sources = [_][]const u8{
     "src/md4c.c",
+};
+
+const md2html_sources = [_][]const u8{
+    "src/md4c.c",
+    "src/md4c-html.c",
+    "src/entity.c",
+    "md2html/cmdline.c",
+    "md2html/md2html.c",
 };
