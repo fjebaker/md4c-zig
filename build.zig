@@ -12,7 +12,11 @@ pub fn build(b: *std.Build) !void {
 
     // On Windows, given there is no standard lib install dir etc., we rather
     // by default build static lib.
-    const build_shared = !target.result.isMinGW();
+    const build_shared = b.option(
+        bool,
+        "md4c-shared",
+        "Build md4c as a shared library",
+    ) orelse !target.result.isMinGW();
 
     // build options
     var with_utf8 = b.option(bool, "utf8", "Use UTF8") orelse false;
