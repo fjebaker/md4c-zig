@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) !void {
 
     setDefines(lib, with_utf8, with_utf16, with_ascii);
     lib.linkLibC();
-    lib.installHeader(.{ .path = "src/md4c.h" }, "md4c.h");
+    lib.installHeader(b.path("src/md4c.h"), "md4c.h");
     b.installArtifact(lib);
 
     const exe = b.addExecutable(.{
