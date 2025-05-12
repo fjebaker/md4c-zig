@@ -90,11 +90,11 @@ fn setDefines(
     );
 
     if (with_utf8) {
-        lib_or_exe.defineCMacro("MD4C_USE_UTF8", "1");
+        lib_or_exe.root_module.addCMacro("MD4C_USE_UTF8", "1");
     } else if (with_ascii) {
-        lib_or_exe.defineCMacro("MD4C_USE_ASCII", "1");
+        lib_or_exe.root_module.addCMacro("MD4C_USE_ASCII", "1");
     } else if (with_utf16) {
-        lib_or_exe.defineCMacro("MD4C_USE_UTF16", "1");
+        lib_or_exe.root_module.addCMacro("MD4C_USE_UTF16", "1");
     }
 }
 
