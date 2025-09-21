@@ -28,19 +28,15 @@ pub fn build(b: *std.Build) !void {
         with_utf8 = true;
     }
 
-    const lib = if (build_shared)
-        b.addSharedLibrary(.{
-            .name = "md4c",
+    const lib = b.addLibrary(.{
+        .name = "md4c",
+        .version = VERSION,
+        .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
-            .version = VERSION,
-        })
-    else
-        b.addStaticLibrary(.{
-            .name = "md4c",
-            .target = target,
-            .optimize = optimize,
-        });
+        }),
+        .linkage = if (build_shared) .dynamic else .static,
+    });
 
     lib.addCSourceFiles(.{
         .files = &md4c_sources,
@@ -54,8 +50,10 @@ pub fn build(b: *std.Build) !void {
 
     const exe = b.addExecutable(.{
         .name = "md2html",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     setDefines(exe, with_utf8, with_utf16, with_ascii);
